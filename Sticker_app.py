@@ -2,7 +2,6 @@ import streamlit as st
 from rembg import remove
 from PIL import Image, ImageOps
 import io
-import os
 import base64
 import numpy as np
 import cv2
@@ -33,25 +32,12 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 💾 2. Local File & Metrics Database Setup
-REVIEWS_DIR = "saved_user_reviews"
-LOG_FILE = "analytics_log.txt"
-os.makedirs(REVIEWS_DIR, exist_ok=True)
+# 💾 2. Cloud-Safe Session State Memory Engine
+if 'analytics_counter' not in st.session_state:
+    st.session_state.analytics_counter = 142  # Seed database value for social proof conversion
 
-def log_activity(filename, img_size):
-    try:
-        with open(LOG_FILE, "a", encoding="utf-8") as f:
-            f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Sticker Created | {filename} | {img_size}\n")
-    except Exception:
-        pass
-
-def get_total_conversions():
-    if not os.path.exists(LOG_FILE): return 142  # Seed database value for social proof conversion
-    try:
-        with open(LOG_FILE, "r", encoding="utf-8") as f:
-            return len(f.readlines()) + 142
-    except Exception:
-        return 142
+if 'reviews_database' not in st.session_state:
+    st.session_state.reviews_database = []  # Sandbox safe memory storage for community feedback
 
 def add_sticker_border(pil_img, border_thickness=12):
     """Advanced Computer Vision Layer: Injects thick white border around isolated objects"""
@@ -70,16 +56,15 @@ def add_sticker_border(pil_img, border_thickness=12):
     
     return Image.fromarray(sticker_np)
 
-# 📂 3. Sidebar Administration Panel (Restored Analytics & Fixed Versioning)
+# 📂 3. Sidebar Administration Panel
 with st.sidebar:
     st.image("https://img.icons8.com/fluent/96/000000/sticker.png", width=70)
     st.title("Aegis Production Control")
     
-    # Restored Live Psychological Metrics Count Tracker
-    total_stickers = get_total_conversions()
+    # Dynamic Tracking Counter
     st.markdown(f"""
     <div class="stat-box">
-        <span style='color: #00f2fe; font-size: 24px; font-weight: bold;'>{total_stickers}+</span><br/>
+        <span style='color: #00f2fe; font-size: 24px; font-weight: bold;'>{st.session_state.analytics_counter}+</span><br/>
         <span style='color: #9ca3af; font-size: 13px;'>Stickers Generated Worldwide Today</span>
     </div>
     """, unsafe_allow_html=True)
@@ -93,7 +78,6 @@ with st.sidebar:
 st.title("⚡ Aegis AI: Professional Sticker Studio Machine")
 st.markdown("##### Isolate objects and instantly apply die-cut white contour borders optimized for chat applications.")
 
-# Explainer Before/After Cards
 st.write("")
 col_ex1, col_ex2, col_ex3 = st.columns([1, 0.2, 1])
 with col_ex1:
@@ -141,19 +125,20 @@ if uploaded_file is not None:
                     final_sticker.save(buf, format="PNG")
                     byte_im = buf.getvalue()
                     
-                    st.download_button(
+                    clicked = st.download_button(
                         label="📥 Download WhatsApp-Ready Sticker (PNG)",
                         data=byte_im,
                         file_name=f"aegis_sticker_{uploaded_file.name.split('.')[0]}.png",
                         mime="image/png"
                     )
-                    log_activity(uploaded_file.name, f"{input_image.size[0]}x{input_image.size[1]}")
+                    if clicked:
+                        st.session_state.analytics_counter += 1
         except Exception as e:
             st.error(f"Execution Error Intercepted: {e}")
 
 st.write("---")
 
-# 💬 5. Complete Integrated Real-Time Sync Review Feed Room 
+# 💬 5. Cloud Sandbox Safe Review Feed Room 
 st.subheader("👥 Creator Community Feedback Room")
 rev_col1, rev_col2 = st.columns([1, 1.2])
 
@@ -167,16 +152,20 @@ with rev_col1:
         
         if st.form_submit_button("Publish to Live Feed"):
             if rev_name and rev_text:
-                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                review_file_path = os.path.join(REVIEWS_DIR, f"rev_{timestamp}.txt")
-                
                 img_base64 = ""
                 if rev_img is not None:
                     img_base64 = base64.b64encode(rev_img.read()).decode('utf-8')
                 
-                with open(review_file_path, "w", encoding="utf-8") as rf:
-                    rf.write(f"{rev_name}||{rev_stars}||{rev_text}||{img_base64}||{datetime.now().strftime('%Y-%m-%d')}")
-                
+                # Insert review directly into safe session memory database
+                new_review = {
+                    "name": rev_name,
+                    "stars": rev_stars,
+                    "text": rev_text,
+                    "img_b64": img_base64,
+                    "date": datetime.now().strftime('%Y-%m-%d')
+                }
+                st.session_state.reviews_database.insert(0, new_review)
+                st.session_state.analytics_counter += 1
                 st.success("Review logged and synchronized globally!")
                 st.rerun()
             else:
@@ -184,33 +173,20 @@ with rev_col1:
 
 with rev_col2:
     st.markdown("#### Live Community Feed")
-    try:
-        review_files = sorted(os.listdir(REVIEWS_DIR), reverse=True)[:5]
-    except Exception:
-        review_files = []
-        
-    if not review_files:
-        st.caption("No public logs published inside live feed tracking folder indexes yet.")
+    if not st.session_state.reviews_database:
+        st.caption("No public logs published inside live feed tracking memory yet.")
     else:
-        for rf_name in review_files:
-            try:
-                with open(os.path.join(REVIEWS_DIR, rf_name), "r", encoding="utf-8") as f:
-                    parts = f.read().split("||")
-                if len(parts) >= 5:
-                    r_name, r_stars, r_text, r_img_b64, r_date = parts[:5]
-                    
-                    st.markdown(f"""
-                    <div class="review-card">
-                        <strong style='font-size: 16px; color: #00f2fe;'>👤 {r_name}</strong> 
-                        <span style='color: #ffb703; margin-left: 10px;'>{'★'*int(r_stars)}</span>
-                        <small style='float: right; color: #6b7280;'>{r_date}</small>
-                        <p style='margin-top: 10px; color: #e5e7eb;'>{r_text}</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    if r_img_b64:
-                        st.markdown("**User Sticker Showcase:**")
-                        st.image(io.BytesIO(base64.b64decode(r_img_b64)), width=130)
-                        st.write("")
-            except Exception:
-                pass
+        for rev in st.session_state.reviews_database[:5]:
+            st.markdown(f"""
+            <div class="review-card">
+                <strong style='font-size: 16px; color: #00f2fe;'>👤 {rev['name']}</strong> 
+                <span style='color: #ffb703; margin-left: 10px;'>{'★'*int(rev['stars'])}</span>
+                <small style='float: right; color: #6b7280;'>{rev['date']}</small>
+                <p style='margin-top: 10px; color: #e5e7eb;'>{rev['text']}</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            if rev['img_b64']:
+                st.markdown("**User Sticker Showcase:**")
+                st.image(io.BytesIO(base64.b64decode(rev['img_b64'])), width=130)
+                st.write("")
